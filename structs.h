@@ -3,6 +3,8 @@
 
 #include <stdlib.h>
 
+#define ERROR_IO    10
+
 #define TRUE  1
 #define FALSE 0
 #define true  1
@@ -14,14 +16,13 @@ typedef struct state_t      state_t;
 
 
 state_t*         state_current_automaton;
-char             stack_automaton[256] = "";
-extern bool      stack_enable         = false;
-extern u_int16_t stack_control        = 0;
+// char             stack_automaton[256] = "";
+// extern bool      stack_enable         = false;
+// extern u_int16_t stack_control        = 0;
 
 
 struct transition_t
 {
-    u_int16_t      id_destiny;
     state_t*       state_destiny;
     char           simbol_transition;
     char           simbol_read_stack;
