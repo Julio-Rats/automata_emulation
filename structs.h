@@ -1,6 +1,7 @@
 #ifndef STRUCT
 #define STRUCT
 
+#include <stdio.h>
 #include <stdlib.h>
 
 #define ERROR_IO    10
