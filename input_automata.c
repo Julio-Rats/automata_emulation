@@ -1,28 +1,27 @@
 #include "input_automata.h"
 
+state_t*  state_current_automaton = NULL;
+state_t*  start_state             = NULL;
+state_t*  states                  = NULL;
+transition_t*  transitions        = NULL;
+u_int16_t number_states           = 0;
+u_int16_t number_transitions      = 0;
+
 void read_xml(const char path[])
 {
     arch_file = fopen(path, "r");
 
     if (!arch_file)
     {
-        fprintf(stderr, "\n[ERROR:] LEITURA ARQUIVO XML\n\n");
+        fprintf(stderr, "\n[ERROR:] LEITURA ARQUIVO '%s' XML\n\n", path);
         exit(ERROR_IO);
     }
 
     start();
 
-    // token_t a = parser();
-    //
-    // while (a.type != FEOF)
-    // {
-    //     printf("%s\t%d\n", a.token, a.type);
-    //     a = parser();
-    // }
-
     fclose(arch_file);
 
-    printf("\n\nFINALIZADO COM SUCESSO\n\n");
+    printf("\nLEITURA DO XML EFETUADA COM SUCESSO\n\n");
 }
 
 token_t parser()
@@ -118,7 +117,6 @@ token_t parser()
             if (token == '\\')
             {
                 token = fgetc(arch_file);
-                // strcat(lexema.token, &token);
                 lexema.token[token_len++] = token;
                 continue;
             }
@@ -129,7 +127,6 @@ token_t parser()
         {
             if (((token >= 'a') && (token <= 'z')) || ((token >= 'A') && (token <= 'Z')) || ((token >= '0') && (token <= '9')))
             {
-                // strcat(lexema.token, &token);
                 lexema.token[token_len++] = token;
                 continue;
             }
@@ -312,9 +309,7 @@ void start()
         exit(ERRO_VALUE);
     }
     consome_token(CLOSE_KEY);
-
     // <automaton>
-
     if (strcmp(type, "fa") == 0)
         type_automata(FA);
     else if (strcmp(type, "pda") == 0)
@@ -325,8 +320,18 @@ void start()
         exit(ERRO_VALUE);
     }
 
+    lexema = consome_token(ALL);
+
+    if (lexema.type == OPEN_COMENT)
+      do
+      {
+          if (lexema.type == OPEN_COMENT)
+              coment();
+          lexema = consome_token(ALL);
+      }while (lexema.type != OPEN_KEY);
+
     // </structure>
-    consome_token(OPEN_KEY);
+    // consome_token(OPEN_KEY);
     consome_token(PCLOSE_KEY);
     lexema = consome_token(COMAND);
     if (strcmp(lexema.token, "structure") != 0)
@@ -335,7 +340,22 @@ void start()
         exit(ERRO_VALUE);
     }
     consome_token(CLOSE_KEY);
-    consome_token(FEOF);
+
+    lexema = consome_token(ALL);
+
+    if (lexema.type == OPEN_COMENT)
+      do
+      {
+          if (lexema.type == OPEN_COMENT)
+              coment();
+          lexema = consome_token(ALL);
+      }while (lexema.type == OPEN_KEY);
+
+    if (lexema.type != FEOF)
+    {
+        fprintf(stderr, "\n[ERRO:] Comando apos strucue não esperado\n\n");
+        exit(ERRO_TYPE);
+    }
 }
 
 void type_automata(int type)
@@ -360,13 +380,11 @@ void type_automata(int type)
 
     if (type == FA)
     {
-        printf("FA\n");
         single();
     }
     else
     // PDA //
     {
-        printf("PDA\n");
         stack();
     }
 
@@ -398,15 +416,9 @@ void single()
           break;
 
         if ((lexema.type == COMAND) && (strcmp(lexema.token, "state")==0))
-        {
-            printf("\nstate\n" );
             get_state_single();
-        }
         else if ((lexema.type == COMAND) && (strcmp(lexema.token, "transition")==0))
-        {
-            printf("\ntransition\n" );
             get_trans_sigle();
-        }
         else
         {
             fprintf(stderr, "\n[ERRO:] Comando não esperado -> \"%s\"\n\n", lexema.token);
@@ -420,23 +432,36 @@ void get_state_single()
 {
     token_t lexema = consome_token(COMAND);
 
-    do{
-      if (strcmp(lexema.token, "id")==0)
-      {
-          consome_token(EQUAL);
-          printf("id\t%s\n", consome_token(STRNG).token);
-      }else if (strcmp(lexema.token, "name")==0)
-      {
-          consome_token(EQUAL);
-          printf("name\t%s\n", consome_token(STRNG).token);
-      }
-      else
-      {
-          fprintf(stderr, "\n[ERRO:] Propriedade -> \"%s\" não existente para 'state'\n\n", lexema.token);
-          exit(ERRO_VALUE);
-      }
 
-      lexema = consome_token(ALL);
+    if (!states)
+    {
+        states = (state_t*) malloc(sizeof(state_t));
+        number_states=1;
+    }
+    else
+    {
+        states = (state_t*) realloc(states, sizeof(state_t)*(++number_states));
+    }
+    states[number_states-1].final_state = false;
+    states[number_states-1].transition  = NULL;
+
+    do{
+
+        if ((strcmp(lexema.token, "id")==0)||(strcmp(lexema.token, "name")==0))
+        {
+            consome_token(EQUAL);
+            if (strcmp(lexema.token, "id")==0)
+                states[number_states-1].id = atoi(consome_token(STRNG).token);
+            else
+                consome_token(STRNG);
+        }
+        else
+        {
+            fprintf(stderr, "\n[ERRO:] Propriedade -> \"%s\" não existente para 'state'\n\n", lexema.token);
+            exit(ERRO_VALUE);
+        }
+
+        lexema = consome_token(ALL);
     }while (lexema.type == COMAND);
 
     if (lexema.type != CLOSE_KEY)
@@ -464,18 +489,20 @@ void get_state_single()
         lexema = consome_token(ALL);
         if (lexema.type == COMAND)
         {
-            printf("%s", lexema.token);
             if ((strcmp(lexema.token, "x")==0)||(strcmp(lexema.token, "y")==0))
             {
                 consome_token(CLOSE_KEY);
-                printf("\t%s\n",consome_token(NUMBER).token);
+                consome_token(NUMBER);
                 consome_token(OPEN_KEY);
                 consome_token(PCLOSE_KEY);
                 consome_token(COMAND);
                 consome_token(CLOSE_KEY);
             }else if ((strcmp(lexema.token, "initial")==0)||(strcmp(lexema.token, "final")==0))
             {
-                printf("\n");
+                if (strcmp(lexema.token, "initial")==0)
+                    start_state = &(states[number_states-1]);
+                else
+                    states[number_states-1].final_state = true;
                 consome_token(PCLOSE_KEY);
                 consome_token(CLOSE_KEY);
             }
@@ -507,6 +534,17 @@ void get_trans_sigle()
 {
     consome_token(CLOSE_KEY);
 
+    if (!transitions)
+    {
+        transitions = (transition_t*) malloc(sizeof(transition_t));
+        number_transitions=1;
+    }
+    else
+    {
+        transitions = (transition_t*) realloc(transitions, sizeof(transition_t)*(++number_transitions));
+    }
+    transitions[number_transitions-1].next_transition = NULL;
+
     while(1)
     {
         token_t lexema = consome_token(ALL);
@@ -524,11 +562,20 @@ void get_trans_sigle()
         lexema = consome_token(ALL);
         if (lexema.type == COMAND)
         {
-            printf("%s", lexema.token);
             if ((strcmp(lexema.token, "from")==0)||(strcmp(lexema.token, "to")==0))
             {
                 consome_token(CLOSE_KEY);
-                printf("\t%s\n",consome_token(NUMBER).token);
+                if (strcmp(lexema.token, "from")==0)
+                {
+
+                    // transitions[number_transitions-1].state_origin=get_state(atoi(consome_token(NUMBER).token));
+                    transitions[number_transitions-1].id_origin=atoi(consome_token(NUMBER).token);
+                }
+                else
+                {
+                    // transitions[number_transitions-1].state_destiny=get_state(atoi(consome_token(NUMBER).token));
+                    transitions[number_transitions-1].id_destiny=atoi(consome_token(NUMBER).token);
+                }
                 consome_token(OPEN_KEY);
                 consome_token(PCLOSE_KEY);
                 consome_token(COMAND);
@@ -539,7 +586,7 @@ void get_trans_sigle()
                 lexema = consome_token(ALL);
                 if (lexema.type == CLOSE_KEY)
                 {
-                    printf("\t%s\n",consome_token(COMAND).token);
+                    strcpy(transitions[number_transitions-1].simbol_transition, consome_token(COMAND).token);
                     consome_token(OPEN_KEY);
                     consome_token(PCLOSE_KEY);
                     consome_token(COMAND);
@@ -547,7 +594,7 @@ void get_trans_sigle()
                 }
                 else if (lexema.type == PCLOSE_KEY)
                 {
-                    printf("\t\"lambda\"\n");
+                    strcpy(transitions[number_transitions-1].simbol_transition, "\0");
                     consome_token(CLOSE_KEY);
                 }
             }
@@ -575,13 +622,10 @@ void get_trans_sigle()
     }
 }
 
-
 void stack()
 {
 
 }
-
-
 
 
 

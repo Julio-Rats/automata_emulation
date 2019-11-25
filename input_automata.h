@@ -24,7 +24,7 @@ typedef struct
     token_e type;
 }token_t;
 
-FILE* arch_file;
+FILE*    arch_file;
 
 void    coment();
 void    read_xml(const char path[]);
@@ -32,11 +32,11 @@ void    erro(token_e requerido, token_e lexema);
 token_t parser();
 token_t consome_token(token_e requerido);
 
-void    start();
-void    stack();
-void    single();
-void    get_state_single();
-void    get_trans_sigle();
-void    type_automata(int type);
+void     start();
+void     stack();
+void     single();
+void     get_state_single();
+void     get_trans_sigle();
+void     type_automata(int type);
 
 #endif
