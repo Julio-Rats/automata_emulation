@@ -1,13 +1,14 @@
 #ifndef AUTOMATON
 #define AUTOMATON
 
+#define  ERRO_NOSTATE   40
+
 #include <string.h>
 #include <stdio.h>
 #include "structs.h"
 
-bool     execute_automata(state_t* automata, char input[]);
-state_t* transition_automaton(state_t* state_current, char simbol);
-
-
+void     unify();
+void     link_trans();
+state_t* get_state(u_int16_t id);
 
 #endif
